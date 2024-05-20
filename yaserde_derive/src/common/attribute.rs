@@ -15,6 +15,11 @@ pub struct YaSerdeAttribute {
   pub skip_serializing: bool,
   pub skip_serializing_if: Option<String>,
   pub text: bool,
+
+  pub force_simple: Option<String>,
+  pub deserialize_with: Option<String>,
+  pub serialize_with: Option<String>,
+  pub force_struct: bool,
 }
 
 fn get_value(iter: &mut IntoIter) -> Option<String> {
@@ -22,7 +27,7 @@ fn get_value(iter: &mut IntoIter) -> Option<String> {
     (iter.next(), iter.next())
   {
     if operator.as_char() == '=' {
-      Some(value.to_string().replace('"', ""))
+      Some(value.to_string().trim_matches('"').replace('\\', ""))
     } else {
       None
     }
@@ -43,6 +48,10 @@ impl YaSerdeAttribute {
     let mut skip_serializing = false;
     let mut skip_serializing_if = None;
     let mut text = false;
+    let mut serialize_with = None;
+    let mut deserialize_with = None;
+    let mut force_simple = None;
+    let mut force_struct = false;
 
     for attr in attrs.iter().filter(|a| a.path.is_ident("yaserde")) {
       let mut attr_iter = attr.clone().tokens.into_iter();
@@ -57,7 +66,8 @@ impl YaSerdeAttribute {
                   attribute = true;
                 }
                 "default" => {
-                  default = get_value(&mut attr_iter);
+                  default =
+                    Some(get_value(&mut attr_iter).unwrap_or("Default::default()".to_string()));
                 }
                 "default_namespace" => {
                   default_namespace = get_value(&mut attr_iter);
@@ -91,6 +101,18 @@ impl YaSerdeAttribute {
                 "text" => {
                   text = true;
                 }
+                "serialize_with" => {
+                  serialize_with = get_value(&mut attr_iter);
+                }
+                "deserialize_with" => {
+                  deserialize_with = get_value(&mut attr_iter);
+                }
+                "force_simple" => {
+                  force_simple = get_value(&mut attr_iter);
+                }
+                "force_struct" => {
+                  force_struct = true;
+                }
                 _ => {}
               }
             }
@@ -110,6 +132,11 @@ impl YaSerdeAttribute {
       skip_serializing,
       skip_serializing_if,
       text,
+
+      serialize_with,
+      deserialize_with,
+      force_simple,
+      force_struct,
     }
   }
 
@@ -185,6 +212,10 @@ fn parse_empty_attributes() {
       skip_serializing: false,
       skip_serializing_if: None,
       text: false,
+      deserialize_with: None,
+      serialize_with: None,
+      force_simple: None,
+      force_struct: false,
     },
     attrs
   );
@@ -235,6 +266,10 @@ fn parse_attributes() {
       skip_serializing: false,
       skip_serializing_if: None,
       text: false,
+      deserialize_with: None,
+      serialize_with: None,
+      force_simple: None,
+      force_struct: false,
     },
     attrs
   );
@@ -285,6 +320,10 @@ fn only_parse_yaserde_attributes() {
       skip_serializing: false,
       skip_serializing_if: None,
       text: false,
+      deserialize_with: None,
+      serialize_with: None,
+      force_simple: None,
+      force_struct: false,
     },
     attrs
   );
@@ -341,6 +380,10 @@ fn parse_attributes_with_values() {
       skip_serializing: false,
       skip_serializing_if: None,
       text: false,
+      deserialize_with: None,
+      serialize_with: None,
+      force_simple: None,
+      force_struct: false,
     },
     attrs
   );

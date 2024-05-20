@@ -172,6 +172,24 @@ pub trait Visitor<'de>: Sized {
   }
 }
 
+impl YaDeserialize for std::string::String {
+  fn deserialize<R: Read>(reader: &mut de::Deserializer<R>) -> Result<Self, String> {
+    if let Ok(xml::reader::XmlEvent::StartElement { .. }) = reader.peek() {
+      let _event = reader.next_event();
+
+      if let Ok(xml::reader::XmlEvent::Characters(data)) = reader.peek() {
+        let output = Ok(data.to_string());
+
+        let _event = reader.next_event();
+
+        return output;
+      }
+    }
+
+    return Err("Failed to parse String".to_string());
+  }
+}
+
 macro_rules! serialize_type {
   ($type:ty) => {
     impl YaSerialize for $type {
@@ -201,6 +219,7 @@ macro_rules! serialize_type {
 
 serialize_type!(bool);
 serialize_type!(char);
+serialize_type!(std::string::String);
 
 serialize_type!(usize);
 serialize_type!(u8);

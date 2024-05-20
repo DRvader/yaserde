@@ -2,7 +2,7 @@ use crate::common::attribute::YaSerdeAttribute;
 use heck::ToUpperCamelCase;
 use proc_macro2::Span;
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use std::fmt;
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
@@ -107,19 +107,69 @@ impl YaSerdeField {
   }
 
   pub fn get_type(&self) -> Field {
-    Field::from(&self.syn_field)
+    if self.attributes.force_struct {
+      Field::FieldStruct {
+        struct_name: syn::Ident::new(
+          &self.syn_field.ty.clone().into_token_stream().to_string(),
+          self.get_span(),
+        )
+        .into(),
+      }
+    } else if let Some(force) = &self.attributes.force_simple {
+      let force: syn::FieldsUnnamed = syn::parse_str(&force).unwrap();
+      Field::from(&force.unnamed.iter().next().cloned().unwrap())
+    } else {
+      Field::from(&self.syn_field)
+    }
   }
 
   pub fn get_span(&self) -> Span {
     self.syn_field.span()
   }
 
-  pub fn get_default_function(&self) -> Option<Ident> {
-    self
-      .attributes
-      .default
-      .as_ref()
-      .map(|default| Ident::new(default, self.get_span()))
+  pub fn get_default_function(&self) -> Option<syn::Expr> {
+    self.attributes.default.as_ref().map(|default| {
+      syn::parse_str(default)
+        .map_err(|mut err| {
+          err.combine(syn::Error::new(
+            self.get_span(),
+            "Failed to get default function from attributes",
+          ))
+        })
+        .unwrap()
+    })
+  }
+
+  #[allow(unused)]
+  pub fn get_serialize_function(&self) -> Option<syn::Expr> {
+    self.attributes.serialize_with.as_ref().map(|func| {
+      syn::parse_str(func)
+        .map_err(|mut err| {
+          err.combine(syn::Error::new(
+            self.get_span(),
+            "Failed to get default function from attributes",
+          ));
+
+          err
+        })
+        .unwrap()
+    })
+  }
+
+  #[allow(unused)]
+  pub fn get_deserialize_function(&self) -> Option<syn::Expr> {
+    self.attributes.deserialize_with.as_ref().map(|func| {
+      syn::parse_str(func)
+        .map_err(|mut err| {
+          err.combine(syn::Error::new(
+            self.get_span(),
+            "Failed to get default function from attributes",
+          ));
+
+          err
+        })
+        .unwrap()
+    })
   }
 
   pub fn get_skip_serializing_if_function(&self) -> Option<Ident> {
