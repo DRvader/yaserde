@@ -190,6 +190,19 @@ impl YaDeserialize for std::string::String {
   }
 }
 
+impl<T: YaDeserialize> YaDeserialize for Vec<T> {
+  fn deserialize<R: Read>(reader: &mut de::Deserializer<R>) -> Result<Self, String> {
+    let mut output = Vec::new();
+    let first = T::deserialize(reader)?;
+    output.push(first);
+    while let Ok(value) = T::deserialize(reader) {
+      output.push(value);
+    }
+
+    Ok(output)
+  }
+}
+
 macro_rules! serialize_type {
   ($type:ty) => {
     impl YaSerialize for $type {

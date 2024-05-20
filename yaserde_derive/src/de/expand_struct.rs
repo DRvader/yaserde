@@ -205,7 +205,7 @@ pub fn parse(
         },
         Field::FieldVec { data_type } => match *data_type {
           Field::FieldStruct { .. } => quote! {
-            #value_label = ::yaserde::de::from_str(&unused_xml_elements).ok();
+              #value_label = ::yaserde::de::from_str(&unused_xml_elements).unwrap_or_default();
           },
           field_type => unimplemented!(r#""flatten" is not implemented for {:?}"#, field_type),
         },
@@ -503,7 +503,7 @@ fn build_call_visitor(
       });
 
       if let ::std::result::Result::Ok(value) = result {
-        #value_label#action
+        #value_label #action
       }
     }
   })
